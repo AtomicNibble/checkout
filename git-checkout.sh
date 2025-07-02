@@ -24,7 +24,7 @@ add_refspec() {
 
 set_git_cfg() {
 	if [ "$URL" = "https://${URL#https://}" ] && [ "$GITHUB_TOKEN" ]; then
-		CREDS=$(echo -n "x-access-token:$GITHUB_TOKEN" | base64)
+		CREDS=$(echo -n "x-access-token:$GITHUB_TOKEN" | base64 -w 0)
 		git config http.extraHeader "Authorization: basic $CREDS"
 	fi
 	add_refspec '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
@@ -133,6 +133,7 @@ REF_DIR=
 TARGET_DIR=
 TARGET_REF=
 CLEAN=
+DEBUG=false
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--repo)
@@ -161,6 +162,7 @@ while [ $# -gt 0 ]; do
 			;;
 		--debug)
 			set -x
+			DEBUG=true
 			shift
 			;;
 		-h|--help)
