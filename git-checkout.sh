@@ -141,6 +141,27 @@ EOF
 	cd - > /dev/null
 }
 
+setup_sparse() {
+	[ -z "$TARGET_DIR" ] && echo Error: target dir required for sparse && usage
+	cd "$TARGET_DIR"
+	if [ "$SPARSE_ENABLE" ]; then
+		# Cone mode (default) is much faster on large repos: it matches whole
+		# directories by prefix and always materializes top-level files, so an
+		# empty pattern list yields a top-level-files-only working tree. Use
+		# --no-cone for exact file/pattern matching at the cost of speed.
+		if [ "$SPARSE_CONE" = "false" ]; then
+			git sparse-checkout set --no-cone $SPARSE
+		else
+			git sparse-checkout set --cone $SPARSE
+		fi
+	elif [ "$(git config --bool core.sparseCheckout)" = "true" ]; then
+		# A previous run enabled sparse-checkout on this reused working tree
+		# but it is no longer requested; restore the full tree.
+		git sparse-checkout disable
+	fi
+	cd - > /dev/null
+}
+
 checkout() {
 	[ -z "$TARGET_DIR" ] && echo Error: target dir required to checkout && usage
 	[ -z "$TARGET_REF" ] && echo Error: target ref required to checkout && usage
@@ -161,6 +182,9 @@ REF_DIR=
 TARGET_DIR=
 TARGET_REF=
 CLEAN=
+SPARSE=
+SPARSE_CONE=
+SPARSE_ENABLE=
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--repo)
@@ -185,6 +209,20 @@ while [ $# -gt 0 ]; do
 			;;
 		--clean)
 			CLEAN="clean"
+			shift
+			;;
+		--sparse)
+			[ -z "$2" ] && echo Error: --sparse requires an argument && usage
+			SPARSE=$2
+			shift 2
+			;;
+		--sparse-cone)
+			[ -z "$2" ] && echo Error: --sparse-cone requires an argument && usage
+			SPARSE_CONE=$2
+			shift 2
+			;;
+		--sparse-enable)
+			SPARSE_ENABLE=1
 			shift
 			;;
 		--debug)
@@ -215,9 +253,11 @@ if [ -z "$TARGET_DIR" ]; then
 	:
 elif [ -d "$TARGET_DIR" ]; then
 	update_target_repo
+	setup_sparse
 	[ "$CLEAN" ] && clean
 else
 	clone_target_repo
+	setup_sparse
 fi
 
 [ "$TARGET_REF" ] && checkout

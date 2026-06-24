@@ -22,6 +22,18 @@ inputs:
   clean:
     description: 'Whether to clean working directory or not'
     default: true
+  sparse-checkout:
+    description: |
+      Space-separated list of paths to restrict the working tree to. In cone
+      mode (default) these are directories; top-level files are always
+      included, so an empty list yields a top-level-files-only checkout. In
+      non-cone mode these are gitignore-style patterns.
+  sparse-checkout-cone-mode:
+    description: |
+      Use cone-mode sparse-checkout (faster on large repos, directories only).
+      'true' (default) or 'false' for non-cone pattern matching. Setting either
+      this or sparse-checkout enables sparse-checkout; leave both empty for a
+      full checkout.
 runs:
   using: 'composite'
   steps:
@@ -32,6 +44,8 @@ runs:
         TARGET_DIR=${{ inputs.path }}
         TARGET_REF=${{ inputs.ref }}
         CLEAN=${{ inputs.clean }}
+        SPARSE='${{ inputs.sparse-checkout }}'
+        SPARSE_CONE='${{ inputs.sparse-checkout-cone-mode }}'
 
         GITHUB_REF=${{ github.ref_name }}
         GITHUB_ACTION_PATH='${{ github.action_path }}'
@@ -64,6 +78,11 @@ runs:
         [ "$TARGET_DIR" ] && CMD="$CMD --target-dir '$TARGET_DIR'"
         [ "$TARGET_REF" ] && CMD="$CMD --target-ref '$TARGET_REF'"
         [ "$CLEAN" == "true" ] && CMD="$CMD --clean"
+        if [ "$SPARSE" ] || [ "$SPARSE_CONE" ]; then
+          CMD="$CMD --sparse-enable"
+          [ "$SPARSE_CONE" ] && CMD="$CMD --sparse-cone '$SPARSE_CONE'"
+          [ "$SPARSE" ] && CMD="$CMD --sparse '$SPARSE'"
+        fi
         echo $CMD
 
         eval $CMD
